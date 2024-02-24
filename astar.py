@@ -8,7 +8,7 @@ pygame.display.set_caption("A* Pathfinding Algorithm")
 
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
-BLUE = (0, 255, 0)
+BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -27,10 +27,10 @@ class Spot:
 		self.neighbours = []
 		self.width = width
 		self.total_rows = total_rows
-
+														
 	def get_pos(self):
 		return self.row, self.col
-
+		255
 	def is_closed(self):
 		return self.color == RED
 
@@ -122,6 +122,7 @@ def algorithm(draw, grid, start, end):
 
 		if current == end:
 			reconstruct_path(came_from, end, draw)
+			start.make_start()
 			end.make_end()
 			return True 
 
@@ -240,8 +241,3 @@ def main(win, width):
 	pygame.quit()
 
 main(WIN, WIDTH)
-
-
-
-
-
