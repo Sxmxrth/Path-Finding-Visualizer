@@ -2,10 +2,11 @@ import pygame
 import math
 from queue import PriorityQueue
 import random
+from time import time
 
 WIDTH = 800
 WIN = pygame.display.set_mode((WIDTH, WIDTH))
-pygame.display.set_caption("A* Pathfinding Algorithm")
+pygame.display.set_caption("A*+RRT Pathfinding Algorithm")
 
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
@@ -20,20 +21,22 @@ TURQUOISE = (64, 224, 208)
 
 DELTA = 1
 
+
 class Spot:
     def __init__(self, row, col, width, total_rows):
-        self.row = row 
-        self.col = col 
-        self.x = row*width
-        self.y = col*width
+        self.row = row
+        self.col = col
+        self.x = row * width
+        self.y = col * width
         self.color = WHITE
         self.neighbours = []
         self.width = width
         self.total_rows = total_rows
-                                                        
+
     def get_pos(self):
         return self.row, self.col
         255
+
     def is_closed(self):
         return self.color == RED
 
@@ -75,16 +78,22 @@ class Spot:
 
     def update_neighbours(self, grid):
         self.neighbours = []
-        if self.row < self.total_rows-1 and not grid[self.row + 1][self.col].is_barrier(): #down
+        if (
+            self.row < self.total_rows - 1
+            and not grid[self.row + 1][self.col].is_barrier()
+        ):  # down
             self.neighbours.append(grid[self.row + 1][self.col])
 
-        if self.row > 0 and not grid[self.row - 1][self.col].is_barrier(): #up
-            self.neighbours.append(grid[self.row - 1][self.col]) 
+        if self.row > 0 and not grid[self.row - 1][self.col].is_barrier():  # up
+            self.neighbours.append(grid[self.row - 1][self.col])
 
-        if self.col > 0 and not grid[self.row][self.col - 1].is_barrier(): #left
-            self.neighbours.append(grid[self.row][self.col - 1]) 
+        if self.col > 0 and not grid[self.row][self.col - 1].is_barrier():  # left
+            self.neighbours.append(grid[self.row][self.col - 1])
 
-        if self.col < self.total_rows-1 and not grid[self.row][self.col + 1].is_barrier(): #right
+        if (
+            self.col < self.total_rows - 1
+            and not grid[self.row][self.col + 1].is_barrier()
+        ):  # right
             self.neighbours.append(grid[self.row][self.col + 1])
 
     def __lt__(self, other):
@@ -97,7 +106,8 @@ class Spot:
 def h(p1, p2):
     x1, y1 = p1
     x2, y2 = p2
-    return abs(x1-x2) + abs(y1-y2)
+    return abs(x1 - x2) + abs(y1 - y2)
+
 
 def reconstruct_path(came_from, current, draw):
     while current in came_from:
@@ -142,15 +152,19 @@ def algorithm(draw, grid, start, end):
             reconstruct_path(came_from, end, draw)
             start.make_start()
             end.make_end()
+            end_time = time()
+            print(end_time - start_time, "seconds")
             return True
 
         for neighbour in current.neighbours:
-            temp_g_score = g_score[current] + 1;
+            temp_g_score = g_score[current] + 1
 
             if temp_g_score < g_score[neighbour]:
                 came_from[neighbour] = current
                 g_score[neighbour] = temp_g_score
-                f_score[neighbour] = temp_g_score + h(neighbour.get_pos(), end.get_pos())
+                f_score[neighbour] = temp_g_score + h(
+                    neighbour.get_pos(), end.get_pos()
+                )
 
                 if neighbour not in open_set_hash:
                     count += 1
@@ -170,13 +184,15 @@ def euclidean_distance(p1, p2):
     x2, y2 = p2
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
+
 def generate_random_point(rows, cols):
     return random.randint(0, rows - 1), random.randint(0, cols - 1)
+
 
 # Function to find the closest node in the tree to the given point
 def find_closest_node(tree, point):
     closest_node = None
-    closest_distance = float('inf')
+    closest_distance = float("inf")
     for node in tree:
         distance = euclidean_distance(node, point)
         if distance < closest_distance:
@@ -184,43 +200,45 @@ def find_closest_node(tree, point):
             closest_node = node
     return closest_node
 
+
 # RRT algorithm implementation
 def rrt_algorithm(grid, start, end):
     # Initialize the tree with the start node
     tree = [start.get_pos()]
-    
+
     # Repeat until we reach the maximum number of iterations or find a path
     for _ in range(1000):  # You can adjust the number of iterations as needed
         # Generate a random point
         random_point = generate_random_point(len(grid), len(grid[0]))
-        
+
         # Find the closest node in the tree to the random point
         closest_node = find_closest_node(tree, random_point)
-        
+
         # Expand towards the random point by a step size
         dx = random_point[0] - closest_node[0]
         dy = random_point[1] - closest_node[1]
         dist = math.sqrt(dx**2 + dy**2)
-        
+
         # Check if the distance is zero to avoid division by zero
         if dist == 0:
             continue
-        
+
         dx = dx / dist * DELTA
         dy = dy / dist * DELTA
         new_node = (closest_node[0] + dx, closest_node[1] + dy)
-        
+
         # Check if the new node is not colliding with obstacles
         if not grid[int(new_node[0])][int(new_node[1])].is_barrier():
             # Add the new node to the tree
             tree.append(new_node)
-            
+
             # If the new node is close to the end node, return the path
             if euclidean_distance(new_node, end.get_pos()) < 10:
                 return tree
-    
+
     # If no path is found after all iterations, return None
     return None
+
 
 def make_grid(rows, width):
     grid = []
@@ -233,12 +251,14 @@ def make_grid(rows, width):
 
     return grid
 
+
 def draw_grid(win, rows, width):
     gap = width // rows
     for i in range(rows):
-        pygame.draw.line(win, GREY, (0, i*gap), (width, i*gap))
+        pygame.draw.line(win, GREY, (0, i * gap), (width, i * gap))
         for j in range(rows):
-            pygame.draw.line(win, GREY, (j*gap, 0), (j*gap, width))
+            pygame.draw.line(win, GREY, (j * gap, 0), (j * gap, width))
+
 
 def draw(win, grid, rows, width):
     win.fill(WHITE)
@@ -250,21 +270,24 @@ def draw(win, grid, rows, width):
     draw_grid(win, rows, width)
     pygame.display.update()
 
+
 def get_clicked_pos(pos, rows, width):
     gap = width // rows
-    y, x = pos 
+    y, x = pos
     row = y // gap
     col = x // gap
     return row, col
 
+
 def main(win, width):
+    global end_time, start_time
     ROWS = 50
     grid = make_grid(ROWS, width)
 
     start = None
     end = None
 
-    run = True 
+    run = True
     started = False
 
     while run:
@@ -274,21 +297,21 @@ def main(win, width):
                 run = False
             if started:
                 continue
-            if pygame.mouse.get_pressed()[0]: #LEFT
+            if pygame.mouse.get_pressed()[0]:  # LEFT
                 pos = pygame.mouse.get_pos()
                 row, col = get_clicked_pos(pos, ROWS, width)
                 spot = grid[row][col]
                 if not start and spot != end:
-                    start = spot 
+                    start = spot
                     start.make_start()
 
                 elif not end and spot != start:
-                    end = spot 
+                    end = spot
                     end.make_end()
 
                 elif spot != start and spot != end:
                     spot.make_barrier()
-            elif pygame.mouse.get_pressed()[2]: # RIGHT
+            elif pygame.mouse.get_pressed()[2]:  # RIGHT
                 pos = pygame.mouse.get_pos()
                 rows, col = get_clicked_pos(pos, ROWS, width)
                 spot = grid[row][col]
@@ -301,23 +324,19 @@ def main(win, width):
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE and not started:
+                    start_time = time()
                     for row in grid:
                         for spot in row:
                             spot.update_neighbours(grid)
 
                     algorithm(lambda: draw(win, grid, ROWS, width), grid, start, end)
-            
+
                 if event.key == pygame.K_c:
                     start = None
                     end = None
                     grid = make_grid(ROWS, width)
 
-
     pygame.quit()
 
+
 main(WIN, WIDTH)
-
-
-
-
-

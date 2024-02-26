@@ -1,10 +1,9 @@
 import pygame
 from queue import PriorityQueue
-from time import time
 
 WIDTH = 800
 WIN = pygame.display.set_mode((WIDTH, WIDTH))
-pygame.display.set_caption("A* Pathfinding Algorithm")
+pygame.display.set_caption("Boundary Node Method (BNM) Pathfinding Algorithm")
 
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
@@ -16,6 +15,8 @@ PURPLE = (128, 0, 128)
 ORANGE = (255, 165, 0)
 GREY = (128, 128, 128)
 TURQUOISE = (64, 224, 208)
+
+DELTA = 1
 
 
 class Spot:
@@ -31,7 +32,6 @@ class Spot:
 
     def get_pos(self):
         return self.row, self.col
-        255
 
     def is_closed(self):
         return self.color == RED
@@ -77,19 +77,19 @@ class Spot:
         if (
             self.row < self.total_rows - 1
             and not grid[self.row + 1][self.col].is_barrier()
-        ):  # down
+        ):
             self.neighbours.append(grid[self.row + 1][self.col])
 
-        if self.row > 0 and not grid[self.row - 1][self.col].is_barrier():  # up
+        if self.row > 0 and not grid[self.row - 1][self.col].is_barrier():
             self.neighbours.append(grid[self.row - 1][self.col])
 
-        if self.col > 0 and not grid[self.row][self.col - 1].is_barrier():  # left
+        if self.col > 0 and not grid[self.row][self.col - 1].is_barrier():
             self.neighbours.append(grid[self.row][self.col - 1])
 
         if (
             self.col < self.total_rows - 1
             and not grid[self.row][self.col + 1].is_barrier()
-        ):  # right
+        ):
             self.neighbours.append(grid[self.row][self.col + 1])
 
     def __lt__(self, other):
@@ -109,57 +109,36 @@ def reconstruct_path(came_from, current, draw):
         draw()
 
 
-def algorithm(draw, grid, start, end):
-    count = 0
+def bnm_algorithm(draw, grid, start, end):
     open_set = PriorityQueue()
-    open_set.put((0, count, start))
+    open_set.put(start)
     came_from = {}
-    g_score = {spot: float("inf") for row in grid for spot in row}
-    g_score[start] = 0
-    f_score = {spot: float("inf") for row in grid for spot in row}
-    f_score[start] = h(start.get_pos(), end.get_pos())
-
-    open_set_hash = {start}
 
     while not open_set.empty():
-        for event in pygame.event.get():
-            if event == pygame.QUIT:
-                pygame.quit()
-
-        current = open_set.get()[2]
-        open_set_hash.remove(current)
+        current = open_set.get()
 
         if current == end:
             reconstruct_path(came_from, end, draw)
             start.make_start()
             end.make_end()
-            end_time = time()
-            print(end_time - start_time, "seconds")
             return True
 
         for neighbour in current.neighbours:
-            temp_g_score = g_score[current] + 1
+            temp_g_score = 1
 
-            if temp_g_score < g_score[neighbour]:
+            if neighbour not in came_from:
                 came_from[neighbour] = current
-                g_score[neighbour] = temp_g_score
-                f_score[neighbour] = temp_g_score + h(
-                    neighbour.get_pos(), end.get_pos()
-                )
+                open_set.put(neighbour)
+                neighbour.make_open()
+                print(
+                    "Adding neighbour to open set:", neighbour.get_pos()
+                )  # Debugging statement
 
-                if neighbour not in open_set_hash:
-                    count += 1
-                    open_set.put((f_score[neighbour], count, neighbour))
-                    open_set_hash.add(neighbour)
-                    neighbour.make_open()
-                    print(
-                        "Added node to open_set:",
-                        (f_score[neighbour], count),
-                    )
         draw()
 
         if current != start:
             current.make_closed()
+            print("Current node closed:", current.get_pos())  # Debugging statement
 
     return False
 
@@ -204,7 +183,6 @@ def get_clicked_pos(pos, rows, width):
 
 
 def main(win, width):
-    global end_time, start_time
     ROWS = 50
     grid = make_grid(ROWS, width)
 
@@ -237,7 +215,7 @@ def main(win, width):
                     spot.make_barrier()
             elif pygame.mouse.get_pressed()[2]:  # RIGHT
                 pos = pygame.mouse.get_pos()
-                rows, col = get_clicked_pos(pos, ROWS, width)
+                row, col = get_clicked_pos(pos, ROWS, width)
                 spot = grid[row][col]
                 spot.reset()
 
@@ -248,17 +226,20 @@ def main(win, width):
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE and not started:
-                    start_time = time()
                     for row in grid:
                         for spot in row:
                             spot.update_neighbours(grid)
 
-                    algorithm(lambda: draw(win, grid, ROWS, width), grid, start, end)
+                    bnm_algorithm(
+                        lambda: draw(win, grid, ROWS, width), grid, start, end
+                    )
 
                 if event.key == pygame.K_c:
                     start = None
                     end = None
                     grid = make_grid(ROWS, width)
+
+    pygame.time.wait(2000)
     pygame.quit()
 
 
